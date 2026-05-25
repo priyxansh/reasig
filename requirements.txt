@@ -1,0 +1,17 @@
+# ReaBot Daemon Dependencies
+# Install: pip install -r requirements.txt
+
+# Audio analysis
+librosa>=0.10.0,<1.0.0
+scipy>=1.11.0
+numpy>=1.24.0
+
+# Async HTTP client for OpenRouter streaming
+aiohttp>=3.9.0,<4.0.0
+
+# Environment variable management
+python-dotenv>=1.0.0
+
+# Testing
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
