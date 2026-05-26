@@ -55,6 +55,12 @@ async def main() -> None:
 
     # Create server
     server = ReaBotServer(config)
+    
+    # Register DSP handlers
+    from .dsp.analyzer import analyze_audio_file
+    from .dsp.masking import analyze_masking
+    server.analyze_handler = analyze_audio_file
+    server.masking_handler = analyze_masking
 
     # Register signal handlers for graceful shutdown
     loop = asyncio.get_running_loop()
