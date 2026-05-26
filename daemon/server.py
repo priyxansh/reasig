@@ -119,14 +119,19 @@ class ClientConnection:
             wav_path = msg.payload.get("wav_path", "")
             track_metadata = msg.payload.get("track_metadata", {})
             user_question = msg.payload.get("user_question", "")
+            stereo = bool(msg.payload.get("stereo", False))
 
             if not wav_path:
                 await self.send(error_response(msg.id, "wav_path is required", "missing_field"))
                 return
 
-            # Run DSP analysis
+            # Run DSP analysis — pass user_question for keyword routing and stereo flag
             if self.server.analyze_handler:
-                analysis = await self.server.analyze_handler(wav_path)
+                analysis = await self.server.analyze_handler(
+                    wav_path,
+                    user_question=user_question,
+                    stereo=stereo,
+                )
             else:
                 analysis = {}
                 logger.warning("No analyze handler registered, skipping DSP analysis")
@@ -157,6 +162,7 @@ class ClientConnection:
         try:
             tracks = msg.payload.get("tracks", [])
             user_question = msg.payload.get("user_question", "")
+            stereo = bool(msg.payload.get("stereo", False))
 
             if not tracks:
                 await self.send(error_response(msg.id, "tracks list is required", "missing_field"))
@@ -168,7 +174,11 @@ class ClientConnection:
                 for track in tracks:
                     wav_path = track.get("wav_path", "")
                     if wav_path:
-                        analysis = await self.server.analyze_handler(wav_path)
+                        analysis = await self.server.analyze_handler(
+                            wav_path,
+                            user_question=user_question,
+                            stereo=stereo,
+                        )
                         analyses.append({
                             "track_metadata": track.get("track_metadata", {}),
                             "analysis": analysis,
@@ -177,10 +187,10 @@ class ClientConnection:
                 logger.warning("No analyze handler registered")
 
             # Run masking analysis if available
+            # Note: masking_handler expects pre-built analysis dicts, not wav paths.
             masking = None
             if self.server.masking_handler and len(analyses) >= 2:
-                wav_paths = [t.get("wav_path", "") for t in tracks if t.get("wav_path")]
-                masking = await self.server.masking_handler(wav_paths)
+                masking = await self.server.masking_handler(analyses)
 
             # Send to LLM
             if self.server.llm_handler:
@@ -279,6 +289,11 @@ class ReaBotServer:
         """Run the server until cancelled."""
         if self.server is None:
             await self.start()
+        if self.server is None:
+            # start() failed to bind — should not happen in practice since
+            # asyncio.start_server raises on failure, but this guard satisfies
+            # the type checker and documents the invariant explicitly.
+            raise RuntimeError("Failed to start server: asyncio.start_server returned None")
         async with self.server:
             await self.server.serve_forever()
 

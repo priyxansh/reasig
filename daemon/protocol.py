@@ -89,6 +89,7 @@ def analyze_track_request(
     wav_path: str,
     track_metadata: dict,
     user_question: str = "",
+    stereo: bool = False,
 ) -> Message:
     """Create a single-track analysis request."""
     return Message(
@@ -97,6 +98,7 @@ def analyze_track_request(
             "wav_path": wav_path,
             "track_metadata": track_metadata,
             "user_question": user_question,
+            "stereo": stereo,
         },
     )
 
