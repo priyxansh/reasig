@@ -106,6 +106,7 @@ def analyze_track_request(
 def analyze_multi_request(
     tracks: list[dict],
     user_question: str = "",
+    stereo: bool = False,
 ) -> Message:
     """Create a multi-track analysis request.
 
@@ -116,6 +117,7 @@ def analyze_multi_request(
         payload={
             "tracks": tracks,
             "user_question": user_question,
+            "stereo": stereo,
         },
     )
 
