@@ -1,0 +1,8 @@
+{
+  "venvPath": ".",
+  "venv": ".venv",
+  "pythonVersion": "3.14",
+  "include": ["daemon", "reascript", "tests"],
+  "exclude": [".venv", "__pycache__"],
+  "reportMissingModuleSource": "none"
+}
