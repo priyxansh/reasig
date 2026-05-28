@@ -116,6 +116,9 @@ function M.tick()
     local ok, err, _ = _sock:send(_send_q[1])
     if ok then
       table.remove(_send_q, 1)    -- sent: remove and try next in same frame
+      if _state == "CONNECTING" then
+        _state = "CONNECTED"      -- confirmed live on first successful send
+      end
     elseif err == "timeout" then
       break                        -- socket buffer full — retry next frame
     else
@@ -127,21 +130,19 @@ function M.tick()
   end
 
   -- ── Receive ───────────────────────────────────────────────────────────
-  local data, err = _sock:receive(65536)
-  if data then
+  local data, err, partial = _sock:receive(65536)
+  local chunk = data or partial
+  if chunk and chunk ~= "" then
     _state    = "CONNECTED"        -- confirmed live on first successful receive
-    _recv_buf = _recv_buf .. data
+    _recv_buf = _recv_buf .. chunk
     _dispatch_buffer()
-  elseif err == "timeout" then
-    -- No data this frame — normal
-    -- Upgrade CONNECTING → CONNECTED if we successfully sent data earlier
-    -- (send doesn't always error immediately; recv timeout is the confirmation)
-    if #_send_q == 0 and _state == "CONNECTING" then
-      -- Not confirmed yet, but no error either — stay CONNECTING
-    end
-  else
-    -- EOF or reset
+  end
+
+  if err == "closed" then
     reaper.ShowConsoleMsg("[ReaBot] Connection lost: " .. tostring(err) .. "\n")
+    _close()
+  elseif err ~= "timeout" and err ~= nil then
+    reaper.ShowConsoleMsg("[ReaBot] Connection error: " .. tostring(err) .. "\n")
     _close()
   end
 end

@@ -100,8 +100,9 @@ function M.get_first_selected()
   local bpm, _, _ = reaper.GetProjectTimeSignature2(0)
   bpm = round2(bpm)
 
-  -- Project sample rate
-  local sr = reaper.GetSampleRate()
+  -- Project / Audio device sample rate
+  local ok, sr_str = reaper.GetAudioDeviceInfo("SRATE")
+  local sr = ok and tonumber(sr_str) or 44100
 
   -- FX chain (nested here per the protocol design)
   local fx_chain = read_fx_chain(track)
