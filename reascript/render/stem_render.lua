@@ -19,12 +19,16 @@
 local M = {}
 
 -- ── State ──────────────────────────────────────────────────────────────────
-local _polling      = false
-local _path         = nil
-local _on_done      = nil
-local _on_error     = nil
-local _timeout_at   = 0
-local _solo_states  = {}     -- {[MediaTrack*] = original_solo_value}
+local _polling            = false
+local _path               = nil
+local _on_done            = nil
+local _on_error           = nil
+local _timeout_at         = 0
+local _solo_states        = {}     -- {[MediaTrack*] = original_solo_value}
+local _orig_render_file   = nil    -- original RENDER_FILE to restore
+local _orig_render_pattern = nil    -- original RENDER_PATTERN to restore
+local _temp_dir           = nil    -- active temp directory
+local _uid                = nil    -- active render UID
 
 local MAX_WAIT_SEC  = 20     -- seconds before giving up
 local MIN_FILE_SIZE = 1024   -- bytes — file must be at least 1 KB to be valid
@@ -40,7 +44,20 @@ local function make_temp_path()
   -- Pseudo-UUID: combine timestamp with a random suffix for uniqueness
   math.randomseed(os.time() + math.random(0, 99999))
   local uid = string.format("%08x%06x", os.time(), math.random(0, 0xFFFFFF))
-  return dir .. "/" .. uid .. ".wav"
+  return dir, uid
+end
+
+local function finish_render()
+  _polling = false
+  -- Restore original render settings
+  if _orig_render_file then
+    reaper.GetSetProjectInfo_String(0, "RENDER_FILE", _orig_render_file, true)
+    _orig_render_file = nil
+  end
+  if _orig_render_pattern then
+    reaper.GetSetProjectInfo_String(0, "RENDER_PATTERN", _orig_render_pattern, true)
+    _orig_render_pattern = nil
+  end
 end
 
 local function save_and_solo(target_track)
@@ -79,6 +96,7 @@ end
 ---@param target_track  MediaTrack*  handle from reaper.GetSelectedTrack()
 ---@param on_done       function(wav_path: string)  called when file is ready
 ---@param on_error      function(error_msg: string)  called on failure / timeout
+---@return nil
 function M.start(target_track, on_done, on_error)
   if _polling then
     on_error("A render is already in progress. Please wait.")
@@ -104,16 +122,26 @@ function M.start(target_track, on_done, on_error)
     return
   end
 
-  local out_path = make_temp_path()
-  _path          = out_path
+  -- Save original render settings
+  local _, orig_file = reaper.GetSetProjectInfo_String(0, "RENDER_FILE", "", false)
+  local _, orig_pattern = reaper.GetSetProjectInfo_String(0, "RENDER_PATTERN", "", false)
+  _orig_render_file = orig_file
+  _orig_render_pattern = orig_pattern
+
+  local temp_dir, uid = make_temp_path()
+  _temp_dir      = temp_dir
+  _uid           = uid
+  _path          = nil -- resolved dynamically on completion
   _on_done       = on_done
   _on_error      = on_error
   _polling       = true
   _timeout_at    = reaper.time_precise() + MAX_WAIT_SEC
 
   -- ── Set render parameters ─────────────────────────────────────────────
-  -- Output file path
-  reaper.GetSetProjectInfo_String(0, "RENDER_FILE", out_path, true)
+  -- Output file directory
+  reaper.GetSetProjectInfo_String(0, "RENDER_FILE", temp_dir, true)
+  -- Output file name pattern
+  reaper.GetSetProjectInfo_String(0, "RENDER_PATTERN", uid, true)
   -- Bounds: 2 = time selection
   reaper.GetSetProjectInfo(0, "RENDER_BOUNDSFLAG", 2, true)
   -- Source: 0 = master mix (combined with solo = isolated track)
@@ -132,17 +160,32 @@ function M.tick()
 
   -- Timeout guard
   if reaper.time_precise() > _timeout_at then
-    _polling = false
+    finish_render()
     reaper.ShowConsoleMsg("[ReaBot] Render timed out after " .. MAX_WAIT_SEC .. "s\n")
     if _on_error then _on_error("Render timed out after " .. MAX_WAIT_SEC .. " seconds.") end
     return
   end
 
-  -- Check if file has appeared with sufficient size
-  local sz = file_size(_path)
-  if sz and sz >= MIN_FILE_SIZE then
-    _polling = false
-    reaper.ShowConsoleMsg("[ReaBot] Render complete: " .. _path .. " (" .. sz .. " bytes)\n")
+  -- Dynamic format detection (wav, mp3, flac, etc.)
+  local extensions = {"wav", "mp3", "flac", "m4a", "ogg", "aiff", "WAV", "MP3", "FLAC", "M4A", "OGG", "AIFF"}
+  local found_path = nil
+  local found_sz   = 0
+
+  for _, ext in ipairs(extensions) do
+    local test_path = _temp_dir .. "/" .. _uid .. "." .. ext
+    local sz = file_size(test_path)
+    if sz and sz >= MIN_FILE_SIZE then
+      found_path = test_path
+      found_sz   = sz
+      break
+    end
+  end
+
+  -- If any matching audio file is found, trigger completion
+  if found_path then
+    _path = found_path
+    finish_render()
+    reaper.ShowConsoleMsg("[ReaBot] Render complete: " .. _path .. " (" .. found_sz .. " bytes)\n")
     if _on_done then _on_done(_path) end
   end
 end
