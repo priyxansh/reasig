@@ -14,19 +14,20 @@ boolean toggle in the UI and passed separately to analyze_audio_file().
 from .types import AnalysisFlags
 
 # ---------------------------------------------------------------------------
-# Keyword lists per module group
+# Keyword sets per module group.
 # These are intentionally broad to catch paraphrases.
 # A prompt matching multiple groups enables all matched modules.
 # ---------------------------------------------------------------------------
 
 _SPECTRUM_MUDDINESS_KEYWORDS = {
-    "muddy", "muddiness", "muddy", "boomy", "boom", "boominess",
+    "muddy", "muddiness", "boomy", "boom", "boominess",
     "rumble", "bass heavy", "bass-heavy", "low end", "low-end",
     "boxy", "boxiness", "warm", "warmth", "thick", "thickness",
     "harsh", "harshness", "brittle", "tinny", "bright", "dull",
     "dark", "frequency", "frequencies", "eq", "equalizer",
     "band", "bands", "spectrum", "spectral", "resonance",
     "buildup", "build up", "high end", "high-end", "air", "presence",
+    "tonal", "tone",
 }
 
 _DYNAMICS_TRANSIENTS_KEYWORDS = {
@@ -35,15 +36,44 @@ _DYNAMICS_TRANSIENTS_KEYWORDS = {
     "over compressed", "compressed", "compression", "compressor",
     "transient", "transients", "attack", "release", "snap",
     "snappy", "punch", "punchy", "impact", "hit", "crack",
-    "dynamic", "dynamics", "loud", "quiet", "level", "volume",
-    "crest factor", "limiter", "limiting", "clipping", "clip",
+    "dynamic", "dynamics", "crest factor", "limiter", "limiting",
     "rms", "peak", "headroom",
+}
+
+_LOUDNESS_KEYWORDS = {
+    "lufs", "loudness", "loud", "quiet",
+    "spotify", "apple music", "youtube", "tidal", "amazon music", "streaming",
+    "normalize", "normalisation", "normalization", "normalise",
+    "master", "mastering", "level", "turn down", "turned down",
+    "integrated", "target", "release loudness", "too loud", "too quiet",
+}
+
+_NOISE_KEYWORDS = {
+    "noise", "hiss", "hissy", "hum", "buzz", "buzzing",
+    "background", "noise floor", "snr", "signal to noise",
+    "static", "crackle", "interference", "hissing",
+    "recording quality", "clean recording", "dirty recording",
+}
+
+_REVERB_KEYWORDS = {
+    "reverb", "room", "roomy", "wet", "decay", "tail", "rt60",
+    "hall", "ambience", "ambient", "space", "echo", "washy", "wash",
+    "smear", "remove reverb", "dry", "tight", "too much reverb",
+    "sounds roomy", "sounds wet",
+}
+
+_DISTORTION_KEYWORDS = {
+    "distortion", "distorted", "dirty", "gritty", "grit",
+    "saturate", "saturation", "overdrive", "harmonic distortion", "thd",
+    "fuzzy", "fuzz", "aliasing", "bitcrush", "bitcrusher",
+    "sounds harsh", "sounds dirty", "harsh", "harshness",
+    "clipping", "clip", "clipped", "overloaded",
 }
 
 _MUSICAL_KEYWORDS = {
     "out of tune", "tuning", "tune", "pitched", "pitch", "key",
     "chord", "chords", "harmony", "harmonics", "harmonic",
-    "root", "scale", "melody", "tonal",
+    "root", "scale", "melody",
     "bpm", "tempo", "beat", "rhythm",
 }
 
@@ -73,23 +103,46 @@ def route_analysis(prompt: str, track_metadata: dict | None = None) -> AnalysisF
 
     normalized = _tokenize(prompt)
 
-    run_spectrum = False
-    run_muddiness = False
-    run_dynamics = False
+    run_spectrum   = False
+    run_muddiness  = False
+    run_dynamics   = False
     run_transients = False
-    run_musical = False
+    run_musical    = False
+    run_loudness   = False
+    run_noise      = False
+    run_reverb     = False
+    run_distortion = False
 
-    # Check each keyword group
     for keyword in _SPECTRUM_MUDDINESS_KEYWORDS:
         if keyword in normalized:
-            run_spectrum = True
+            run_spectrum  = True
             run_muddiness = True
             break
 
     for keyword in _DYNAMICS_TRANSIENTS_KEYWORDS:
         if keyword in normalized:
-            run_dynamics = True
+            run_dynamics   = True
             run_transients = True
+            break
+
+    for keyword in _LOUDNESS_KEYWORDS:
+        if keyword in normalized:
+            run_loudness = True
+            break
+
+    for keyword in _NOISE_KEYWORDS:
+        if keyword in normalized:
+            run_noise = True
+            break
+
+    for keyword in _REVERB_KEYWORDS:
+        if keyword in normalized:
+            run_reverb = True
+            break
+
+    for keyword in _DISTORTION_KEYWORDS:
+        if keyword in normalized:
+            run_distortion = True
             break
 
     for keyword in _MUSICAL_KEYWORDS:
@@ -98,12 +151,14 @@ def route_analysis(prompt: str, track_metadata: dict | None = None) -> AnalysisF
             break
 
     # Fallback: if nothing matched at all, run everything
-    any_matched = run_spectrum or run_dynamics or run_musical
+    any_matched = (
+        run_spectrum or run_dynamics or run_musical
+        or run_loudness or run_noise or run_reverb or run_distortion
+    )
     if not any_matched:
         return AnalysisFlags.all_enabled()
 
-    # Spectrum analysis is always needed if muddiness is flagged
-    # (muddiness.py reads from spectrum output)
+    # Spectrum is always needed when muddiness is flagged
     if run_muddiness:
         run_spectrum = True
 
@@ -113,4 +168,9 @@ def route_analysis(prompt: str, track_metadata: dict | None = None) -> AnalysisF
         run_muddiness=run_muddiness,
         run_transients=run_transients,
         run_musical=run_musical,
+        run_loudness=run_loudness,
+        run_noise=run_noise,
+        run_reverb=run_reverb,
+        run_distortion=run_distortion,
     )
+

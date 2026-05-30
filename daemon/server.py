@@ -127,7 +127,7 @@ class ClientConnection:
 
             # Run DSP analysis — pass user_question for keyword routing and stereo flag
             if self.server.analyze_handler:
-                analysis = await self.server.analyze_handler(
+                analysis = self.server.analyze_handler(
                     wav_path,
                     user_question=user_question,
                     stereo=stereo,
@@ -176,7 +176,7 @@ class ClientConnection:
                 for track in tracks:
                     wav_path = track.get("wav_path", "")
                     if wav_path:
-                        analysis = await self.server.analyze_handler(
+                        analysis = self.server.analyze_handler(
                             wav_path,
                             user_question=user_question,
                             stereo=stereo,

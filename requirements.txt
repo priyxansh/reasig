@@ -5,6 +5,7 @@
 librosa>=0.10.0,<1.0.0
 scipy>=1.11.0
 numpy>=1.24.0
+pyloudnorm>=0.1.0
 
 # Async HTTP client for OpenRouter streaming
 aiohttp>=3.9.0,<4.0.0
