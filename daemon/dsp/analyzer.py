@@ -101,11 +101,11 @@ async def analyze_audio_file(
         if flags.run_muddiness:
             # muddiness.py reads from spectrum results — ensure spectrum was run
             if flags.run_spectrum and "band_energy" in combined:
-                combined["flags"] = analyze_tonal_balance(combined)
+                combined["tonal_balance"] = analyze_tonal_balance(combined)
             else:
                 # Spectrum wasn't run but muddiness was requested — run spectrum now
                 spectrum_for_muddiness = analyze_spectrum(y_mono, sr)
-                combined["flags"] = analyze_tonal_balance(spectrum_for_muddiness)
+                combined["tonal_balance"] = analyze_tonal_balance(spectrum_for_muddiness)
 
         if flags.run_transients:
             combined["transients"] = analyze_transients(y_mono, sr)

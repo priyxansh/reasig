@@ -138,7 +138,7 @@ class ClientConnection:
 
             # Send to LLM if handler is registered
             if self.server.llm_handler:
-                await self.server.llm_handler(
+                full_response = await self.server.llm_handler(
                     request_id=msg.id,
                     analysis=analysis,
                     track_metadata=track_metadata,
@@ -146,8 +146,10 @@ class ClientConnection:
                     conversation_history=self.conversation_history,
                     send_fn=self.send,
                 )
-                # Store in conversation history
-                self.conversation_history.append({"role": "user", "content": user_question})
+                # Store BOTH turns so next request has full multi-turn context
+                if full_response:
+                    self.conversation_history.append({"role": "user",      "content": user_question})
+                    self.conversation_history.append({"role": "assistant", "content": full_response})
             else:
                 # No LLM handler — just return the raw analysis
                 from .protocol import analysis_result
@@ -190,7 +192,7 @@ class ClientConnection:
             # Note: masking_handler expects pre-built analysis dicts, not wav paths.
             masking = None
             if self.server.masking_handler and len(analyses) >= 2:
-                masking = await self.server.masking_handler(analyses)
+                masking = self.server.masking_handler(analyses)
 
             # Send to LLM
             if self.server.llm_handler:
@@ -229,7 +231,7 @@ class ClientConnection:
             effective_history = history if history else self.conversation_history
 
             if self.server.llm_handler:
-                await self.server.llm_handler(
+                full_response = await self.server.llm_handler(
                     request_id=msg.id,
                     analysis=track_context or {},
                     track_metadata={},
@@ -237,8 +239,10 @@ class ClientConnection:
                     conversation_history=effective_history,
                     send_fn=self.send,
                 )
-                # Store in conversation history
-                self.conversation_history.append({"role": "user", "content": user_message})
+                # Store BOTH turns so the next request has full multi-turn context
+                if full_response:
+                    self.conversation_history.append({"role": "user",      "content": user_message})
+                    self.conversation_history.append({"role": "assistant", "content": full_response})
             else:
                 await self.send(
                     error_response(msg.id, "LLM handler not available", "no_llm_handler")

@@ -6,7 +6,7 @@ Analyzes frequency overlap between multiple tracks to detect masking.
 
 from typing import Dict, List, Any
 
-async def analyze_masking(tracks_analysis: List[Dict[str, Any]]) -> Dict[str, Any]:
+def analyze_masking(tracks_analysis: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
     Compare multiple tracks to find frequency masking.
     

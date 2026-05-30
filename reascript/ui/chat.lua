@@ -184,9 +184,10 @@ function _draw_chat_history()
       reaper.ImGui_SetScrollHereY(_ctx, 1.0)
       _scroll_to_bot = false
     end
-
-    reaper.ImGui_EndChild(_ctx)
   end
+
+  -- !! SAFETY: EndChild must be called unconditionally after BeginChild !!
+  reaper.ImGui_EndChild(_ctx)
 end
 
 function _draw_status_bar()

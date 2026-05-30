@@ -201,29 +201,37 @@ function M.cleanup(path)
   end
 end
 
----Clean up any stale reabot_temp files older than max_age_sec.
----Call once on script startup to prevent accumulation from crashed sessions.
----@param max_age_sec number  default 3600 (1 hour)
+---Clean up stale reabot_temp files left over from previous sessions.
+---Called once at script startup. Safe to delete everything because the current
+---session's in-flight file is always tracked in _pending_wav (reabot_main.lua)
+---and has not been written yet at startup time.
+---@param max_age_sec number  unused, kept for API compatibility
 function M.cleanup_stale(max_age_sec)
-  max_age_sec = max_age_sec or 3600
   local proj = reaper.GetProjectPath("")
   local base = (proj ~= "" and proj or reaper.GetResourcePath())
   local dir  = base .. "/reabot_temp"
 
-  -- Iterate directory (REAPER API: EnumerateFiles)
-  local now = os.time()
-  local i   = 0
+  -- EnumerateFiles re-indexes after each deletion, so we always ask for index 0
+  -- and loop until nil is returned (directory empty or no more files).
+  local deleted = 0
   while true do
-    local f = reaper.EnumerateFiles(dir, i)
+    local f = reaper.EnumerateFiles(dir, 0)
     if not f then break end
     local full = dir .. "/" .. f
-    -- os.difftime gives seconds; file modification time not directly available in Lua
-    -- Best effort: try to open and check — stale files just stay until next cleanup
-    -- (Full mtime check would require LuaFileSystem which isn't bundled)
-    i = i + 1
+    local ok, err = os.remove(full)
+    if ok then
+      deleted = deleted + 1
+    else
+      -- Can't delete (e.g. locked) — skip by moving to the next index
+      -- Re-enumerate from index 1 to avoid infinite loop on this file
+      local f2 = reaper.EnumerateFiles(dir, 1)
+      if not f2 then break end   -- only one file left and it's locked; stop
+    end
   end
-  -- Simpler: just delete all .wav files in the dir older than current session
-  -- This is a best-effort; no error if files can't be removed
+
+  if deleted > 0 then
+    reaper.ShowConsoleMsg("[ReaBot] Cleaned up " .. deleted .. " stale temp file(s) from previous session.\n")
+  end
 end
 
 ---@return boolean  true if a render is currently in progress
