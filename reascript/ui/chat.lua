@@ -298,22 +298,29 @@ function _format_analysis(analysis)
 
   -- Dynamics
   if analysis.rms_db then
+    local clip_str = ""
+    if analysis.clip_severity and analysis.clip_severity ~= "none" then
+      clip_str = "  |  CLIP: " .. analysis.clip_severity:match("^(.-) %—") or analysis.clip_severity
+    end
     table.insert(lines, string.format(
-      "RMS: %.1f dBFS  |  Peak: %.1f dBFS  |  Crest: %.1f dB",
+      "RMS: %.1f dBFS  |  Peak: %.1f dBFS  |  Crest: %.1f dB%s",
       analysis.rms_db or 0,
       analysis.peak_db or 0,
-      analysis.crest_factor_db or 0
+      analysis.crest_factor_db or 0,
+      clip_str
     ))
   end
 
   -- Transients
   if analysis.transients then
     local t = analysis.transients
-    local s = ""
-    for k, v in pairs(t) do
-      s = s .. k .. "=" .. tostring(v) .. "  "
-    end
-    table.insert(lines, "Transients: " .. s)
+    table.insert(lines, string.format(
+      "Transients: %s density  |  %s per sec  |  Att/Dec: %sms / %sms",
+      t.density or "?",
+      t.onsets_per_second or "?",
+      t.avg_attack_ms or "?",
+      t.avg_decay_ms or "?"
+    ))
   end
 
   -- Musical
@@ -322,6 +329,53 @@ function _format_analysis(analysis)
       "BPM: %.1f  |  Key: %s",
       analysis.musical.bpm or 0,
       analysis.musical.key or "?"
+    ))
+  end
+
+  -- Spectral Balance vs Target Curve
+  if analysis.overall_balance_score then
+    table.insert(lines, string.format(
+      "Spectral Balance: score %.1f (%s)",
+      analysis.overall_balance_score,
+      analysis.overall_balance_label or "?"
+    ))
+  end
+
+  -- Loudness
+  if analysis.loudness and analysis.loudness.lufs_integrated then
+    table.insert(lines, string.format(
+      "Loudness: %.1f LUFS (%s)",
+      analysis.loudness.lufs_integrated,
+      analysis.loudness.lufs_status or "?"
+    ))
+  end
+
+  -- Noise Floor
+  if analysis.noise and analysis.noise.noise_floor_db then
+    table.insert(lines, string.format(
+      "Noise Floor: %.1f dBFS  |  SNR: %.1f dB (%s)",
+      analysis.noise.noise_floor_db,
+      analysis.noise.snr_db or 0,
+      analysis.noise.noise_label or "?"
+    ))
+  end
+
+  -- Reverb
+  if analysis.reverb and analysis.reverb.rt60_seconds then
+    table.insert(lines, string.format(
+      "Reverb RT60: %.2fs (%s)",
+      analysis.reverb.rt60_seconds,
+      analysis.reverb.reverb_label or "?"
+    ))
+  end
+
+  -- Distortion
+  if analysis.distortion and analysis.distortion.thd_ratio then
+    table.insert(lines, string.format(
+      "THD: %.2f%% @ %.0fHz (%s)",
+      analysis.distortion.thd_ratio * 100,
+      analysis.distortion.fundamental_hz or 0,
+      analysis.distortion.thd_label or "?"
     ))
   end
 
