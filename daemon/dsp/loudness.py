@@ -71,15 +71,16 @@ def analyze_loudness(y: np.ndarray, sr: int) -> Dict[str, Any]:
             "platform_deltas": {},
         }
 
-    lufs_rounded = round(lufs, 1)
+    # pyloudnorm returns np.float64, which propagates to numpy bools on comparison
+    lufs_rounded = float(round(lufs, 1))
 
     platform_deltas: Dict[str, Any] = {}
     for platform, target in _TARGETS.items():
-        delta = round(lufs_rounded - target, 1)
+        delta = float(round(lufs_rounded - target, 1))
         platform_deltas[platform] = {
             "target_lufs":    target,
             "delta_db":       delta,
-            "will_normalize": delta > 0,   # True = platform will turn it down
+            "will_normalize": bool(delta > 0),   # True = platform will turn it down
         }
 
     return {
