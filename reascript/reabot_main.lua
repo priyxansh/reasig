@@ -11,36 +11,42 @@
 
 -- ── Path setup (allows require() to find sibling modules) ──
 -- reaper.get_action_context() returns: is_valid, filename, sectionID, cmdID, mode, resolution, val
-local _script_path = ({ reaper.get_action_context() })[2]
-local _script_dir  = _script_path:match("(.*[/\\])")
+local _script_path   = ({ reaper.get_action_context() })[2]
+local _script_dir    = _script_path:match("(.*[/\\])")
 
-package.path = _script_dir  .. "?.lua;"
-           .. _script_dir  .. "?/init.lua;"
-           .. package.path
+package.path         = _script_dir .. "?.lua;"
+    .. _script_dir .. "?/init.lua;"
+    .. package.path
 
 -- ── Locate and add Mavriq LuaSockets / Batteries ──
-local resource_path = reaper.GetResourcePath()
-local is_windows = reaper.GetOS():match("Win")
-local sep = is_windows and "\\" or "/"
+local resource_path  = reaper.GetResourcePath()
+local is_windows     = reaper.GetOS():match("Win")
+local sep            = is_windows and "\\" or "/"
 
 -- Path to Sockets package
-local sockets_path = table.concat({resource_path, "Scripts", "Mavriq ReaScript Repository", "Various", "Mavriq-Lua-Sockets", ""}, sep)
+local sockets_path   = table.concat(
+  { resource_path, "Scripts", "Mavriq ReaScript Repository", "Various", "Mavriq-Lua-Sockets", "" }, sep)
 -- Path to Batteries package
-local batteries_path = table.concat({resource_path, "Scripts", "Mavriq ReaScript Repository", "Various", "Mavriq-Lua-Batteries", ""}, sep)
+local batteries_path = table.concat(
+  { resource_path, "Scripts", "Mavriq ReaScript Repository", "Various", "Mavriq-Lua-Batteries", "" }, sep)
 
 -- Sockets package paths
-package.path = package.path .. ";" .. sockets_path .. "?.lua"
-package.cpath = package.cpath .. ";" .. sockets_path .. "?.so;" .. sockets_path .. "?.dll;" .. sockets_path .. "?.dylib"
+package.path         = package.path .. ";" .. sockets_path .. "?.lua"
+package.cpath        = package.cpath ..
+    ";" .. sockets_path .. "?.so;" .. sockets_path .. "?.dll;" .. sockets_path .. "?.dylib"
 
 -- Batteries package paths (fallback/alternative)
-package.path = package.path .. ";" .. batteries_path .. "lua" .. sep .. "?.lua"
-package.cpath = package.cpath .. ";" .. batteries_path .. "bin" .. sep .. "?.so;" .. batteries_path .. "bin" .. sep .. "?.dll;" .. batteries_path .. "bin" .. sep .. "?.dylib"
+package.path         = package.path .. ";" .. batteries_path .. "lua" .. sep .. "?.lua"
+package.cpath        = package.cpath ..
+    ";" ..
+    batteries_path ..
+    "bin" .. sep .. "?.so;" .. batteries_path .. "bin" .. sep .. "?.dll;" .. batteries_path .. "bin" .. sep .. "?.dylib"
 
 -- ── Load modules ─────────────────────────────────────────────────────────
-local socket = require("bridge.socket_client")
-local render = require("render.stem_render")
-local track  = require("extraction.track")
-local ui     = require("ui.chat")
+local socket         = require("bridge.socket_client")
+local render         = require("render.stem_render")
+local track          = require("extraction.track")
+local ui             = require("ui.chat")
 
 -- ── Initialize ─────────────────────────────────────────────────────────────
 ui.init()
@@ -48,8 +54,10 @@ socket.connect()
 
 -- Route all daemon messages through the UI handler
 socket.on_message(function(msg)
-  -- Clean up temp WAV when a response completes
-  if (msg.type == "analysis_result" or msg.type == "response_done") then
+  -- Clear current request if we are done or failed
+  if msg.type == "response_done" or msg.type == "error" then
+    _current_request_id = nil
+    -- Clean up temp WAV when a response completes
     if _pending_wav then
       render.cleanup(_pending_wav)
       _pending_wav = nil
@@ -58,8 +66,9 @@ socket.on_message(function(msg)
   ui.on_daemon_message(msg)
 end)
 
--- ── Pending WAV path (for deferred cleanup) ────────────────────────────────
-_pending_wav = nil   -- global so the on_message closure above can reach it
+-- ── Pending WAV path and current request ID (for deferred cleanup/cancel) ──
+_pending_wav = nil -- global so the on_message closure above can reach it
+_current_request_id = nil
 
 -- ── ID generator (lightweight, no UUID lib needed) ────────────────────────
 local _id_counter = 0
@@ -107,12 +116,14 @@ ui.on_analyze_click = function(prompt, stereo)
     _pending_wav = wav_path
     ui.set_status("Analyzing...")
 
+    local req_id = make_id()
+    _current_request_id = req_id
     socket.send({
       type    = "analyze_track",
-      id      = make_id(),
+      id      = req_id,
       payload = {
         wav_path       = wav_path,
-        track_metadata = meta,        -- fx_chain is nested inside meta
+        track_metadata = meta, -- fx_chain is nested inside meta
         user_question  = prompt,
         stereo         = stereo,
       },
@@ -134,9 +145,11 @@ ui.on_chat_click = function(prompt)
   ui.add_user_message(prompt)
   ui.set_status("Thinking...")
 
+  local req_id = make_id()
+  _current_request_id = req_id
   socket.send({
     type    = "chat",
-    id      = make_id(),
+    id      = req_id,
     payload = {
       user_message = prompt,
     },
@@ -166,7 +179,17 @@ local function loop()
   if keep_open then
     reaper.defer(loop)
   else
-    -- Window closed: clean up any in-flight temp file
+    -- Window closed
+    if _current_request_id and socket.is_connected() then
+      socket.send({
+        type    = "cancel",
+        id      = make_id(),
+        payload = { target_id = _current_request_id },
+      })
+      -- Tick once more to flush the send queue exiting
+      socket.tick()
+    end
+
     if _pending_wav then
       render.cleanup(_pending_wav)
       _pending_wav = nil

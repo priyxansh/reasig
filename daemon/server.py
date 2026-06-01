@@ -40,6 +40,7 @@ class ClientConnection:
         # Cache last analysis so Chat follow-ups have the same DSP context
         self._last_analysis: dict = {}
         self._last_track_metadata: dict = {}
+        self._current_task: asyncio.Task | None = None
 
     async def send(self, msg: Message) -> None:
         """Send a message to this client."""
@@ -109,7 +110,8 @@ class ClientConnection:
 
         elif msg_type == MessageType.CANCEL:
             logger.info("Cancel request received for: %s", msg.payload.get("target_id"))
-            # TODO: Implement cancellation of in-flight requests
+            if self._current_task and not self._current_task.done():
+                self._current_task.cancel()
 
         else:
             await self.send(
@@ -146,18 +148,26 @@ class ClientConnection:
 
             # Send to LLM if handler is registered
             if self.server.llm_handler:
-                full_response = await self.server.llm_handler(
-                    request_id=msg.id,
-                    analysis=analysis,
-                    track_metadata=track_metadata,
-                    user_question=user_question,
-                    conversation_history=self.conversation_history,
-                    send_fn=self.send,
+                self._current_task = asyncio.create_task(
+                    self.server.llm_handler(
+                        request_id=msg.id,
+                        analysis=analysis,
+                        track_metadata=track_metadata,
+                        user_question=user_question,
+                        conversation_history=self.conversation_history,
+                        send_fn=self.send,
+                    )
                 )
-                # Store BOTH turns so next request has full multi-turn context
-                if full_response:
-                    self.conversation_history.append({"role": "user",      "content": user_question})
-                    self.conversation_history.append({"role": "assistant", "content": full_response})
+                try:
+                    full_response = await self._current_task
+                    # Store BOTH turns so next request has full multi-turn context
+                    if full_response:
+                        self.conversation_history.append({"role": "user",      "content": user_question})
+                        self.conversation_history.append({"role": "assistant", "content": full_response})
+                except asyncio.CancelledError:
+                    logger.info("Cancelled in-flight task for %s", msg.id)
+                finally:
+                    self._current_task = None
             else:
                 # No LLM handler — just return the raw analysis
                 from .protocol import analysis_result
@@ -247,18 +257,26 @@ class ClientConnection:
             effective_history = self.conversation_history
 
             if self.server.llm_handler:
-                full_response = await self.server.llm_handler(
-                    request_id=msg.id,
-                    analysis=self._last_analysis,
-                    track_metadata=self._last_track_metadata,
-                    user_question=user_message,
-                    conversation_history=effective_history,
-                    send_fn=self.send,
+                self._current_task = asyncio.create_task(
+                    self.server.llm_handler(
+                        request_id=msg.id,
+                        analysis=self._last_analysis,
+                        track_metadata=self._last_track_metadata,
+                        user_question=user_message,
+                        conversation_history=effective_history,
+                        send_fn=self.send,
+                    )
                 )
-                # Store BOTH turns so the next request has full multi-turn context
-                if full_response:
-                    self.conversation_history.append({"role": "user",      "content": user_message})
-                    self.conversation_history.append({"role": "assistant", "content": full_response})
+                try:
+                    full_response = await self._current_task
+                    # Store BOTH turns so the next request has full multi-turn context
+                    if full_response:
+                        self.conversation_history.append({"role": "user",      "content": user_message})
+                        self.conversation_history.append({"role": "assistant", "content": full_response})
+                except asyncio.CancelledError:
+                    logger.info("Cancelled in-flight task for %s", msg.id)
+                finally:
+                    self._current_task = None
             else:
                 await self.send(
                     error_response(msg.id, "LLM handler not available", "no_llm_handler")

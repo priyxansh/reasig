@@ -28,6 +28,7 @@ local _state     = "DISCONNECTED"   -- "DISCONNECTED" | "CONNECTING" | "CONNECTE
 local _send_q    = {}               -- FIFO: [1] = oldest, [#] = newest
 local _recv_buf  = ""
 local _on_msg_cb = nil              -- function(msg_table) — set by caller
+local _last_ping = 0                -- track last ping time
 
 -- ── Internal helpers ───────────────────────────────────────────────────────
 
@@ -94,6 +95,13 @@ function M.on_message(cb)
   _on_msg_cb = cb
 end
 
+---Send a keep-alive ping, bypassing the send queue.
+function M.ping()
+  if _state ~= "CONNECTED" then return end
+  local line = json.encode({ type = "status", id = "ping", payload = {} }) .. "\n"
+  table.insert(_send_q, 1, line)
+end
+
 ---Enqueue a message to be sent to the daemon. msg_table is a Lua table that
 ---will be JSON-encoded and sent as a newline-terminated line.
 ---@param msg_table table
@@ -110,6 +118,13 @@ end
 ---Must be called every defer frame. Handles all I/O without blocking.
 function M.tick()
   if _state == "DISCONNECTED" then return end
+
+  -- ── Keep-alive ping (every 5 seconds) ──────────────────────────────────
+  local now = reaper.time_precise()
+  if now - _last_ping > 5.0 then
+    M.ping()
+    _last_ping = now
+  end
 
   -- ── Flush send queue (FIFO: index 1 = oldest) ────────────────────────
   while #_send_q > 0 do

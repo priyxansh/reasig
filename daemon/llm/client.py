@@ -9,6 +9,7 @@ Error handling covers the most common OpenRouter failure modes and
 produces user-readable error messages that are displayed in the REAPER chat.
 """
 
+import asyncio
 import json
 import logging
 from typing import Callable, Awaitable
@@ -105,6 +106,10 @@ async def stream_response(
 
                 await on_done("".join(full_response))
 
+    except asyncio.CancelledError:
+        # Expected when user clicks Clear or closes window
+        logger.debug("LLM stream cancelled mid-flight")
+        raise
     except aiohttp.ClientConnectorError:
         raise RuntimeError(
             "Cannot connect to OpenRouter. Check your internet connection."
