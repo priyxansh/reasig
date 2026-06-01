@@ -13,6 +13,7 @@ try:
     import pyloudnorm as pyln
     _PYLOUDNORM_AVAILABLE = True
 except ImportError:
+    pyln = None  # type: ignore[assignment]
     _PYLOUDNORM_AVAILABLE = False
 
 # Streaming platform integrated loudness targets (LUFS)
@@ -46,6 +47,7 @@ def analyze_loudness(y: np.ndarray, sr: int) -> Dict[str, Any]:
             "platform_deltas": {},
         }
 
+    assert pyln is not None  # narrowing: _PYLOUDNORM_AVAILABLE == True implies pyln was imported
     meter = pyln.Meter(sr)  # ITU-R BS.1770-4
 
     try:

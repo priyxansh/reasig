@@ -102,6 +102,7 @@ async def test_server_analyze_with_fake_handlers(test_config):
     server_task = asyncio.create_task(server.serve_forever())
     await asyncio.sleep(0.1)
     
+    assert server.server is not None
     port = server.server.sockets[0].getsockname()[1]
     reader, writer = await asyncio.open_connection("127.0.0.1", port)
     

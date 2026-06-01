@@ -89,7 +89,9 @@ def test_loudness_properties(sine_wave, white_noise, sr):
     # Near-silence should be reported as "too quiet" or unmeasurable
     silent = sine_wave(amp=1e-6)
     silent_result = loudness.analyze_loudness(silent, sr)
-    assert silent_result.get("lufs_integrated") is None or silent_result.get("lufs_integrated") < -60.0
+    lufs = silent_result.get("lufs_integrated")
+    # Either returns None (signal too quiet) or an extremely low LUFS value
+    assert lufs is None or lufs < -60.0
 
 # --- Spectrum ---
 def test_spectrum_properties(white_noise, sr):
