@@ -125,9 +125,10 @@ class ClientConnection:
                 await self.send(error_response(msg.id, "wav_path is required", "missing_field"))
                 return
 
-            # Run DSP analysis — pass user_question for keyword routing and stereo flag
+            # Run DSP analysis in a thread pool to keep the event loop responsive
             if self.server.analyze_handler:
-                analysis = self.server.analyze_handler(
+                analysis = await asyncio.to_thread(
+                    self.server.analyze_handler,
                     wav_path,
                     user_question=user_question,
                     stereo=stereo,
@@ -170,13 +171,14 @@ class ClientConnection:
                 await self.send(error_response(msg.id, "tracks list is required", "missing_field"))
                 return
 
-            # Run DSP analysis on each track
+            # Run DSP analysis on each track in a thread pool
             analyses = []
             if self.server.analyze_handler:
                 for track in tracks:
                     wav_path = track.get("wav_path", "")
                     if wav_path:
-                        analysis = self.server.analyze_handler(
+                        analysis = await asyncio.to_thread(
+                            self.server.analyze_handler,
                             wav_path,
                             user_question=user_question,
                             stereo=stereo,

@@ -32,11 +32,7 @@ class Config:
     def validate(self) -> list[str]:
         """Return a list of validation errors (empty if valid)."""
         errors = []
-        if not self.openrouter_api_key or self.openrouter_api_key == "sk-or-v1-your-key-here":
-            errors.append(
-                "OPENROUTER_API_KEY is not set. "
-                "Get a free key at https://openrouter.ai/keys and add it to .env"
-            )
+        # Note: missing API key is handled as a warning in __main__.py, not a hard error
         if not self.model:
             errors.append("REABOT_MODEL is not set.")
         if not (1024 <= self.port <= 65535):
@@ -66,7 +62,7 @@ def load_config() -> Config:
 
     return Config(
         openrouter_api_key=os.environ.get("OPENROUTER_API_KEY", ""),
-        model=os.environ.get("REABOT_MODEL", "meta-llama/llama-3.1-70b-instruct:free"),
+        model=os.environ.get("REABOT_MODEL", "openai/gpt-oss-120b:free"),
         host=os.environ.get("REABOT_HOST", "127.0.0.1"),
         port=int(os.environ.get("REABOT_PORT", "9876")),
         temp_dir=temp_dir,

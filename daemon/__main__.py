@@ -62,6 +62,18 @@ async def main() -> None:
     server.analyze_handler = analyze_audio_file
     server.masking_handler = analyze_masking
 
+    # Register LLM handler
+    from .llm import make_llm_handler
+    if config.openrouter_api_key and config.openrouter_api_key != "sk-or-v1-your-key-here":
+        server.llm_handler = make_llm_handler(config)
+        logger.info("LLM handler registered (model: %s)", config.model)
+    else:
+        logger.warning(
+            "OPENROUTER_API_KEY not set — LLM responses disabled. "
+            "Raw DSP analysis will be returned instead. "
+            "Add your key to .env to enable AI responses."
+        )
+
     # Register signal handlers for graceful shutdown
     loop = asyncio.get_running_loop()
 
