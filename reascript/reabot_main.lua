@@ -50,6 +50,10 @@ local ui             = require("ui.chat")
 
 -- ── Initialize ─────────────────────────────────────────────────────────────
 ui.init()
+
+local REABOT_MODEL_DISPLAY = ""
+ui.set_model(REABOT_MODEL_DISPLAY)
+
 socket.connect()
 
 -- Route all daemon messages through the UI handler
