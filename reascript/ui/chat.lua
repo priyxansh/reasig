@@ -26,6 +26,7 @@ local _stereo_enabled  = false
 local _scroll_to_bot   = false
 local _is_connected    = false
 local _streaming_idx   = nil       -- index into _messages for active stream
+local _has_analysis    = false     -- true after first successful Analyze completes
 
 -- Public callbacks — set by reabot_main.lua
 M.on_analyze_click = nil
@@ -90,16 +91,18 @@ function M.on_daemon_message(msg)
     _messages[_streaming_idx].text = _messages[_streaming_idx].text .. delta
     _scroll_to_bot = true
 
-  elseif t == "response_done" then
-    _streaming_idx = nil
-    _status_text   = "Ready"
-
   elseif t == "analysis_result" then
-    -- Phase 3 fallback: LLM not wired yet — display formatted analysis
+    -- LLM not wired yet — display formatted analysis as plain text
     local text = _format_analysis(p.analysis or {})
     table.insert(_messages, { role = "bot", text = text })
     _status_text   = "Ready"
     _scroll_to_bot = true
+    _has_analysis  = true   -- unlock Chat button
+
+  elseif t == "response_done" then
+    _streaming_idx = nil
+    _status_text   = "Ready"
+    _has_analysis  = true   -- unlock Chat button (LLM responded using analysis)
 
   elseif t == "status_ok" then
     _is_connected = true
@@ -215,7 +218,7 @@ function _draw_input_row()
   )
   if changed then _input_text = new_text end
 
-  -- Submit on Enter when input is focused
+  -- Enter always triggers Analyze (not Chat — Analyze is the primary action)
   if reaper.ImGui_IsItemFocused(_ctx) then
     if reaper.ImGui_IsKeyPressed(_ctx, reaper.ImGui_Key_Enter()) then
       _trigger_analyze()
@@ -228,8 +231,19 @@ function _draw_input_row()
   end
 
   reaper.ImGui_SameLine(_ctx)
+
+  -- Chat button: disabled (and greyed) until at least one analysis has run
+  if not _has_analysis then
+    reaper.ImGui_BeginDisabled(_ctx)
+  end
   if reaper.ImGui_Button(_ctx, "Chat", 60, 0) then
     _trigger_chat()
+  end
+  if not _has_analysis then
+    reaper.ImGui_EndDisabled(_ctx)
+    if reaper.ImGui_IsItemHovered(_ctx) then
+      reaper.ImGui_SetTooltip(_ctx, "Run Analyze first to give the AI data to work with.")
+    end
   end
 end
 

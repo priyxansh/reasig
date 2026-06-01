@@ -37,6 +37,9 @@ class ClientConnection:
         self.addr = writer.get_extra_info("peername")
         self.conversation_history: list[dict] = []
         self._closed = False
+        # Cache last analysis so Chat follow-ups have the same DSP context
+        self._last_analysis: dict = {}
+        self._last_track_metadata: dict = {}
 
     async def send(self, msg: Message) -> None:
         """Send a message to this client."""
@@ -137,6 +140,10 @@ class ClientConnection:
                 analysis = {}
                 logger.warning("No analyze handler registered, skipping DSP analysis")
 
+            # Cache analysis and metadata for subsequent Chat follow-ups
+            self._last_analysis = analysis
+            self._last_track_metadata = track_metadata
+
             # Send to LLM if handler is registered
             if self.server.llm_handler:
                 full_response = await self.server.llm_handler(
@@ -222,21 +229,28 @@ class ClientConnection:
         """Handle a free-form chat request."""
         try:
             user_message = msg.payload.get("user_message", "")
-            history = msg.payload.get("conversation_history", [])
-            track_context = msg.payload.get("track_context")
 
             if not user_message:
                 await self.send(error_response(msg.id, "user_message is required", "missing_field"))
                 return
 
-            # Use provided history or fall back to connection history
-            effective_history = history if history else self.conversation_history
+            # Guard: require at least one prior analysis before allowing Chat
+            if not self._last_analysis:
+                await self.send(error_response(
+                    msg.id,
+                    "No track analysis available yet. Click Analyze first to give me data to work with.",
+                    "no_analysis_context",
+                ))
+                return
+
+            # Re-use the last DSP analysis + metadata so the LLM still has all the numbers
+            effective_history = self.conversation_history
 
             if self.server.llm_handler:
                 full_response = await self.server.llm_handler(
                     request_id=msg.id,
-                    analysis=track_context or {},
-                    track_metadata={},
+                    analysis=self._last_analysis,
+                    track_metadata=self._last_track_metadata,
                     user_question=user_message,
                     conversation_history=effective_history,
                     send_fn=self.send,
