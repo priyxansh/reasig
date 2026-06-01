@@ -11,6 +11,7 @@ Note: Stereo analysis is NOT routed here. It is controlled by an explicit
 boolean toggle in the UI and passed separately to analyze_audio_file().
 """
 
+import re
 from .types import AnalysisFlags
 
 # ---------------------------------------------------------------------------
@@ -79,9 +80,14 @@ _MUSICAL_KEYWORDS = {
 
 # ---------------------------------------------------------------------------
 
-def _tokenize(text: str) -> str:
-    """Lowercase and normalize text for matching."""
-    return text.lower().strip()
+def _has_match(keywords: set[str], text: str) -> bool:
+    """Check if any of the keywords appear as whole words/phrases in the text."""
+    for keyword in keywords:
+        # \b ensures we match "thin" but not "think" or "everything"
+        pattern = r'\b' + re.escape(keyword) + r'\b'
+        if re.search(pattern, text):
+            return True
+    return False
 
 
 def route_analysis(prompt: str, track_metadata: dict | None = None) -> AnalysisFlags:
@@ -101,7 +107,7 @@ def route_analysis(prompt: str, track_metadata: dict | None = None) -> AnalysisF
         # No prompt — run everything as the safe fallback
         return AnalysisFlags.all_enabled()
 
-    normalized = _tokenize(prompt)
+    normalized = prompt.lower().strip()
 
     run_spectrum   = False
     run_muddiness  = False
@@ -113,42 +119,28 @@ def route_analysis(prompt: str, track_metadata: dict | None = None) -> AnalysisF
     run_reverb     = False
     run_distortion = False
 
-    for keyword in _SPECTRUM_MUDDINESS_KEYWORDS:
-        if keyword in normalized:
-            run_spectrum  = True
-            run_muddiness = True
-            break
+    if _has_match(_SPECTRUM_MUDDINESS_KEYWORDS, normalized):
+        run_spectrum  = True
+        run_muddiness = True
 
-    for keyword in _DYNAMICS_TRANSIENTS_KEYWORDS:
-        if keyword in normalized:
-            run_dynamics   = True
-            run_transients = True
-            break
+    if _has_match(_DYNAMICS_TRANSIENTS_KEYWORDS, normalized):
+        run_dynamics   = True
+        run_transients = True
 
-    for keyword in _LOUDNESS_KEYWORDS:
-        if keyword in normalized:
-            run_loudness = True
-            break
+    if _has_match(_LOUDNESS_KEYWORDS, normalized):
+        run_loudness = True
 
-    for keyword in _NOISE_KEYWORDS:
-        if keyword in normalized:
-            run_noise = True
-            break
+    if _has_match(_NOISE_KEYWORDS, normalized):
+        run_noise = True
 
-    for keyword in _REVERB_KEYWORDS:
-        if keyword in normalized:
-            run_reverb = True
-            break
+    if _has_match(_REVERB_KEYWORDS, normalized):
+        run_reverb = True
 
-    for keyword in _DISTORTION_KEYWORDS:
-        if keyword in normalized:
-            run_distortion = True
-            break
+    if _has_match(_DISTORTION_KEYWORDS, normalized):
+        run_distortion = True
 
-    for keyword in _MUSICAL_KEYWORDS:
-        if keyword in normalized:
-            run_musical = True
-            break
+    if _has_match(_MUSICAL_KEYWORDS, normalized):
+        run_musical = True
 
     # Fallback: if nothing matched at all, run everything
     any_matched = (
