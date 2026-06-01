@@ -54,15 +54,32 @@ socket.connect()
 
 -- Route all daemon messages through the UI handler
 socket.on_message(function(msg)
-  -- Clear current request if we are done or failed
-  if msg.type == "response_done" or msg.type == "error" then
+  local t = msg.type
+  local p = msg.payload or {}
+
+  -- status_ok: grab model name and enable Chat if we have stored history
+  if t == "status_ok" then
+    if p.model and p.model ~= "" then
+      ui.set_model(p.model)
+    end
+    if p.has_history then
+      ui.set_has_analysis(true)
+      local turns = p.history_turns or 0
+      if turns > 0 then
+        ui.set_status(string.format("Loaded %d previous turn%s", turns, turns == 1 and "" or "s"))
+      end
+    end
+  end
+
+  -- WAV cleanup: both response_done and analysis_result complete the flow
+  if t == "response_done" or t == "analysis_result" or t == "error" then
     _current_request_id = nil
-    -- Clean up temp WAV when a response completes
     if _pending_wav then
       render.cleanup(_pending_wav)
       _pending_wav = nil
     end
   end
+
   ui.on_daemon_message(msg)
 end)
 
@@ -126,6 +143,7 @@ ui.on_analyze_click = function(prompt, stereo)
         track_metadata = meta, -- fx_chain is nested inside meta
         user_question  = prompt,
         stereo         = stereo,
+        project_path   = reaper.GetProjectPath("") or "",
       },
     })
   end, function(render_err)
@@ -159,11 +177,12 @@ end
 -- ── Startup: clean up stale temp files from previous sessions ────────────
 render.cleanup_stale(3600)
 
--- ── Send an initial STATUS ping to quickly confirm connection ─────────────
+-- ── Send an initial STATUS ping — includes project_path so the daemon can
+--    load stored conversation history────
 socket.send({
   type    = "status",
   id      = make_id(),
-  payload = {},
+  payload = { project_path = reaper.GetProjectPath("") or "" },
 })
 
 -- ── Main defer loop ────────────────────────────────────────────────────────

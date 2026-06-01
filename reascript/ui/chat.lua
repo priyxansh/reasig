@@ -27,6 +27,7 @@ local _scroll_to_bot   = false
 local _is_connected    = false
 local _streaming_idx   = nil       -- index into _messages for active stream
 local _has_analysis    = false     -- true after first successful Analyze completes
+local _model_name      = ""        -- shown in UI; set by reabot_main.lua via M.set_model()
 
 -- Public callbacks — set by reabot_main.lua
 M.on_analyze_click = nil
@@ -57,6 +58,29 @@ end
 ---@param connected boolean
 function M.set_connected(connected)
   _is_connected = connected
+end
+
+---Signal that analysis context is available so the Chat button is enabled.
+---Called by reabot_main.lua when the daemon reports has_history on startup
+---or when an Analyze/Chat response completes.
+---@param value boolean
+function M.set_has_analysis(value)
+  _has_analysis = value
+end
+
+---Set the model name shown in the header.
+---@param name string
+function M.set_model(name)
+  _model_name = name or ""
+end
+
+---Programmatically clear the chat (e.g. when user clicks the Clear button or
+---the main script wants to reset state on project switch).
+function M.clear_chat()
+  _messages      = {}
+  _streaming_idx = nil
+  _has_analysis  = false
+  _status_text   = "Ready"
 end
 
 ---Add a user message to the chat history.

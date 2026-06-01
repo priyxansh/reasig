@@ -41,6 +41,9 @@ class ClientConnection:
         self._last_analysis: dict = {}
         self._last_track_metadata: dict = {}
         self._current_task: asyncio.Task | None = None
+        # Session persistence
+        self._project_path: str = ""
+        self._history_loaded: bool = False
 
     async def send(self, msg: Message) -> None:
         """Send a message to this client."""
@@ -90,6 +93,16 @@ class ClientConnection:
                 await self.writer.wait_closed()
             except Exception:
                 pass
+            # Persist conversation history for next session
+            if self.conversation_history and self._history_loaded:
+                from .session import save_history
+                await asyncio.to_thread(
+                    save_history, self._project_path, self.conversation_history
+                )
+                logger.info(
+                    "Session saved for '%s' (%d turns)",
+                    self._project_path, len(self.conversation_history) // 2,
+                )
             logger.info("Client connection closed: %s", self.addr)
 
     async def _dispatch(self, msg: Message) -> None:
@@ -97,7 +110,39 @@ class ClientConnection:
         msg_type = msg.type
 
         if msg_type == MessageType.STATUS:
-            await self.send(status_ok(msg.id))
+            # Pull project_path from the STATUS payload so we can look up history
+            # before the first analyze_track arrives (covers startup ping).
+            project_path = msg.payload.get("project_path", "")
+            if project_path and not self._project_path:
+                self._project_path = project_path
+
+            hist_turns = 0
+            _has_history = False
+            if not self._history_loaded and self._project_path:
+                from .session import load_history, has_history as _check_history
+                _has_history = await asyncio.to_thread(_check_history, self._project_path)
+                if _has_history:
+                    loaded = await asyncio.to_thread(load_history, self._project_path)
+                    if loaded:
+                        self.conversation_history = loaded
+                        hist_turns = len(loaded) // 2
+                        logger.info(
+                            "Loaded %d history turns for '%s'",
+                            hist_turns, self._project_path,
+                        )
+                self._history_loaded = True
+            elif self._history_loaded:
+                _has_history = len(self.conversation_history) > 0
+                hist_turns = len(self.conversation_history) // 2
+
+            await self.send(
+                status_ok(
+                    msg.id,
+                    model=self.server.config.model,
+                    has_history=_has_history,
+                    history_turns=hist_turns,
+                )
+            )
 
         elif msg_type == MessageType.ANALYZE_TRACK:
             await self._handle_analyze_track(msg)
@@ -125,10 +170,33 @@ class ClientConnection:
             track_metadata = msg.payload.get("track_metadata", {})
             user_question = msg.payload.get("user_question", "")
             stereo = bool(msg.payload.get("stereo", False))
+            project_path = msg.payload.get("project_path", "")
 
             if not wav_path:
                 await self.send(error_response(msg.id, "wav_path is required", "missing_field"))
                 return
+
+            # Capture project path and lazy-load history on the first real request
+            if project_path and not self._project_path:
+                self._project_path = project_path
+
+            if not self._history_loaded:
+                from .session import load_history
+                loaded = await asyncio.to_thread(load_history, self._project_path)
+                if loaded:
+                    # Merge: prepend stored turns so they precede any already in memory.
+                    # In practice this is only hit if STATUS didn't carry project_path.
+                    existing_set = {(h["role"], h["content"]) for h in self.conversation_history}
+                    merged = loaded + [
+                        h for h in self.conversation_history
+                        if (h["role"], h["content"]) not in existing_set
+                    ]
+                    self.conversation_history = merged
+                    logger.info(
+                        "Lazy-loaded %d history turns for '%s'",
+                        len(loaded) // 2, self._project_path,
+                    )
+                self._history_loaded = True
 
             # Run DSP analysis in a thread pool to keep the event loop responsive
             if self.server.analyze_handler:
@@ -244,14 +312,21 @@ class ClientConnection:
                 await self.send(error_response(msg.id, "user_message is required", "missing_field"))
                 return
 
-            # Guard: require at least one prior analysis before allowing Chat
-            if not self._last_analysis:
+            # Guard: require at least one prior analysis OR restored history.
+            # When history is loaded from the DB the user has already analysed
+            # this project in a previous session — Chat is still meaningful
+            # because the LLM has the full conversation context.
+            if not self._last_analysis and not self._history_loaded:
                 await self.send(error_response(
                     msg.id,
                     "No track analysis available yet. Click Analyze first to give me data to work with.",
                     "no_analysis_context",
                 ))
                 return
+
+            if not self._last_analysis and self._history_loaded:
+                # Chat without fresh DSP data — LLM works from conversation history only
+                logger.info("Chat with history-only context (no fresh analysis) for %s", self.addr)
 
             # Re-use the last DSP analysis + metadata so the LLM still has all the numbers
             effective_history = self.conversation_history

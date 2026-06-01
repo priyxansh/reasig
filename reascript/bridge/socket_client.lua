@@ -12,23 +12,23 @@
             lib/dkjson  (bundled at reascript/lib/dkjson.lua)
 --]]
 
-local M = {}
+local M          = {}
 
-local socket = require("socket")
-local json   = require("lib/dkjson")
+local socket     = require("socket")
+local json       = require("lib/dkjson")
 
 -- ── Configuration ──────────────────────────────────────────────────────────
-local HOST    = "127.0.0.1"
-local PORT    = 9876
-local MAX_Q   = 64     -- max pending messages before oldest is dropped
+local HOST       = "127.0.0.1"
+local PORT       = 9876
+local MAX_Q      = 64 -- max pending messages before oldest is dropped
 
 -- ── Module state ──────────────────────────────────────────────────────────
 local _sock      = nil
-local _state     = "DISCONNECTED"   -- "DISCONNECTED" | "CONNECTING" | "CONNECTED"
-local _send_q    = {}               -- FIFO: [1] = oldest, [#] = newest
+local _state     = "DISCONNECTED" -- "DISCONNECTED" | "CONNECTING" | "CONNECTED"
+local _send_q    = {}             -- FIFO: [1] = oldest, [#] = newest
 local _recv_buf  = ""
-local _on_msg_cb = nil              -- function(msg_table) — set by caller
-local _last_ping = 0                -- track last ping time
+local _on_msg_cb = nil            -- function(msg_table) — set by caller
+local _last_ping = 0              -- track last ping time
 
 -- ── Internal helpers ───────────────────────────────────────────────────────
 
@@ -43,13 +43,13 @@ end
 local function _dispatch_buffer()
   -- Extract and dispatch every complete newline-terminated message
   while true do
-    local nl = _recv_buf:find("\n", 1, true)   -- plain search, not pattern
+    local nl = _recv_buf:find("\n", 1, true) -- plain search, not pattern
     if not nl then break end
 
-    local line   = _recv_buf:sub(1, nl - 1)
-    _recv_buf    = _recv_buf:sub(nl + 1)
+    local line = _recv_buf:sub(1, nl - 1)
+    _recv_buf  = _recv_buf:sub(nl + 1)
 
-    line = line:match("^%s*(.-)%s*$")  -- trim whitespace
+    line       = line:match("^%s*(.-)%s*$") -- trim whitespace
     if line ~= "" then
       local ok, msg = pcall(json.decode, line)
       if ok and msg then
@@ -68,7 +68,7 @@ end
 function M.connect()
   if _state ~= "DISCONNECTED" then return end
   _sock = socket.tcp()
-  _sock:settimeout(0)           -- non-blocking mode
+  _sock:settimeout(0) -- non-blocking mode
 
   -- connect() on a non-blocking socket returns immediately.
   -- The error "timeout" here means "in progress" — that's fine.
@@ -98,7 +98,7 @@ end
 ---Send a keep-alive ping, bypassing the send queue.
 function M.ping()
   if _state ~= "CONNECTED" then return end
-  local line = json.encode({ type = "status", id = "ping", payload = {} }) .. "\n"
+  local line = json.encode({ type = "status", id = "ping" }) .. "\n"
   table.insert(_send_q, 1, line)
 end
 
@@ -130,12 +130,12 @@ function M.tick()
   while #_send_q > 0 do
     local ok, err, _ = _sock:send(_send_q[1])
     if ok then
-      table.remove(_send_q, 1)    -- sent: remove and try next in same frame
+      table.remove(_send_q, 1) -- sent: remove and try next in same frame
       if _state == "CONNECTING" then
-        _state = "CONNECTED"      -- confirmed live on first successful send
+        _state = "CONNECTED"   -- confirmed live on first successful send
       end
     elseif err == "timeout" then
-      break                        -- socket buffer full — retry next frame
+      break -- socket buffer full — retry next frame
     else
       -- Real error: connection dropped
       reaper.ShowConsoleMsg("[ReaBot] Send error: " .. tostring(err) .. "\n")
@@ -148,7 +148,7 @@ function M.tick()
   local data, err, partial = _sock:receive(65536)
   local chunk = data or partial
   if chunk and chunk ~= "" then
-    _state    = "CONNECTED"        -- confirmed live on first successful receive
+    _state    = "CONNECTED" -- confirmed live on first successful receive
     _recv_buf = _recv_buf .. chunk
     _dispatch_buffer()
   end

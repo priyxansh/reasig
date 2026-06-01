@@ -76,12 +76,30 @@ def status_request() -> Message:
     return Message(type=MessageType.STATUS)
 
 
-def status_ok(request_id: str) -> Message:
-    """Create a status OK response."""
+def status_ok(
+    request_id: str,
+    model: str = "",
+    has_history: bool = False,
+    history_turns: int = 0,
+) -> Message:
+    """Create a status OK response.
+
+    Args:
+        request_id:    The id of the STATUS request being acknowledged.
+        model:         Model identifier string (shown in UI title bar).
+        has_history:   True if there are stored conversation turns for this project.
+        history_turns: Number of stored turn pairs (user+assistant) for this project.
+    """
     return Message(
         type=MessageType.STATUS_OK,
         id=request_id,
-        payload={"status": "ok", "version": "0.1.0"},
+        payload={
+            "status":        "ok",
+            "version":       "0.1.0",
+            "model":         model,
+            "has_history":   has_history,
+            "history_turns": history_turns,
+        },
     )
 
 
