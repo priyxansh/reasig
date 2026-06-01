@@ -27,6 +27,7 @@ class MessageType(str, Enum):
     ANALYZE_MULTI = "analyze_multi"
     CHAT = "chat"
     CANCEL = "cancel"
+    CLEAR_HISTORY = "clear_history"
 
     # Responses (Daemon → ReaScript)
     STATUS_OK = "status_ok"

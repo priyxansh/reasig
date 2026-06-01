@@ -84,6 +84,12 @@ socket.on_message(function(msg)
     end
   end
 
+  -- clear_history_ok: daemon confirmed the DB wipe
+  if t == "clear_history_ok" then
+    ui.set_status("History cleared")
+    return  -- no further UI routing needed
+  end
+
   ui.on_daemon_message(msg)
 end)
 
@@ -175,6 +181,16 @@ ui.on_chat_click = function(prompt)
     payload = {
       user_message = prompt,
     },
+  })
+end
+
+-- ── Clear button handler (wipes DB history) ───────────────────────────────
+ui.on_clear_click = function()
+  if not socket.is_connected() then return end  -- daemon offline — in-memory already cleared by UI
+  socket.send({
+    type    = "clear_history",
+    id      = make_id(),
+    payload = {},
   })
 end
 

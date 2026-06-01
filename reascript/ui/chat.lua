@@ -32,6 +32,7 @@ local _model_name     = "unknown model"  -- shown in UI; set by reabot_main.lua 
 -- Public callbacks — set by reabot_main.lua
 M.on_analyze_click    = nil
 M.on_chat_click       = nil
+M.on_clear_click      = nil   -- fired when the user clicks Clear (after in-memory wipe)
 
 -- ── ImGui colour constants ─────────────────────────────────────────────────
 local COL_GREEN       = 0x44FF88FF
@@ -181,7 +182,10 @@ function _draw_header()
   local avail = reaper.ImGui_GetContentRegionAvail(_ctx)
   reaper.ImGui_SameLine(_ctx, avail - 40)
   if reaper.ImGui_SmallButton(_ctx, "Clear") then
-    M.clear_chat()
+    M.clear_chat()               -- immediate: wipe messages, reset status
+    if M.on_clear_click then
+      M.on_clear_click()         -- tell daemon to wipe DB too
+    end
   end
 
   reaper.ImGui_Separator(_ctx)

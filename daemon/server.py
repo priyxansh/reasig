@@ -158,6 +158,9 @@ class ClientConnection:
             if self._current_task and not self._current_task.done():
                 self._current_task.cancel()
 
+        elif msg_type == MessageType.CLEAR_HISTORY:
+            await self._handle_clear_history(msg)
+
         else:
             await self.send(
                 error_response(msg.id, f"Unknown message type: {msg_type}", "unknown_type")
@@ -244,6 +247,21 @@ class ClientConnection:
         except Exception as e:
             logger.exception("Error in analyze_track handler")
             await self.send(error_response(msg.id, str(e), "analysis_error"))
+
+    async def _handle_clear_history(self, msg: Message) -> None:
+        """Wipe conversation history — both in-memory and in the SQLite DB."""
+        self.conversation_history = []
+        self._last_analysis = {}
+        self._last_track_metadata = {}
+        # Also erase the DB row so reloading the script starts fresh
+        if self._project_path:
+            from .session import clear_history
+            await asyncio.to_thread(clear_history, self._project_path)
+            logger.info("Session cleared for '%s'", self._project_path)
+        # Acknowledge so the Lua side can confirm the clear completed
+        await self.send(
+            Message(type="clear_history_ok", id=msg.id, payload={"status": "cleared"})
+        )
 
     async def _handle_analyze_multi(self, msg: Message) -> None:
         """Handle a multi-track analysis request."""
