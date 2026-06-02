@@ -1,5 +1,5 @@
 """
-ReaBot DSP - Shared Types
+ReaSig DSP - Shared Types
 
 Defines shared dataclasses used across DSP modules.
 Kept in a dedicated file to avoid circular imports between router.py and analyzer.py.

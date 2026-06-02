@@ -1,11 +1,11 @@
 """
-Tests for the ReaBot Daemon protocol and TCP server.
+Tests for the ReaSig Daemon protocol and TCP server.
 """
 
 import pytest
 import asyncio
 from daemon.protocol import Message, MessageType, status_request, analyze_track_request
-from daemon.server import ReaBotServer
+from daemon.server import ReaSigServer
 from daemon.config import Config
 
 # --- Protocol Tests ---
@@ -45,7 +45,7 @@ def test_config(tmp_path):
 
 @pytest.mark.asyncio
 async def test_server_status_ping(test_config):
-    server = ReaBotServer(test_config)
+    server = ReaSigServer(test_config)
     
     # Start the server as a background task
     server_task = asyncio.create_task(server.serve_forever())
@@ -82,7 +82,7 @@ async def test_server_status_ping(test_config):
 
 @pytest.mark.asyncio
 async def test_server_analyze_with_fake_handlers(test_config):
-    server = ReaBotServer(test_config)
+    server = ReaSigServer(test_config)
     
     # Inject fake DSP handler
     def fake_analyze(wav_path, user_question, stereo):

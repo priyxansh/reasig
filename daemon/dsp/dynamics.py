@@ -1,5 +1,5 @@
 """
-ReaBot DSP - Dynamics Analysis
+ReaSig DSP - Dynamics Analysis
 
 Analyzes RMS, Peak, Crest Factor, and clipping of the audio signal.
 Clipping detection is always included alongside dynamics since digital

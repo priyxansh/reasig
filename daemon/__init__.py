@@ -1,1 +1,1 @@
-"""ReaBot Daemon Package."""
+"""ReaSig Daemon Package."""

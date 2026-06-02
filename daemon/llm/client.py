@@ -1,5 +1,5 @@
 """
-ReaBot LLM - OpenRouter SSE Streaming Client
+ReaSig LLM - OpenRouter SSE Streaming Client
 
 Streams responses from OpenRouter using Server-Sent Events (SSE).
 Calls on_chunk() for each token delta as it arrives, and on_done()
@@ -16,7 +16,7 @@ from typing import Callable, Awaitable
 
 import aiohttp
 
-logger = logging.getLogger("reabot.llm")
+logger = logging.getLogger("reasig.llm")
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
@@ -46,8 +46,8 @@ async def stream_response(
     headers = {
         "Authorization":  f"Bearer {api_key}",
         "Content-Type":   "application/json",
-        "HTTP-Referer":   "https://github.com/priyxansh/reabot",
-        "X-Title":        "ReaBot — REAPER AI Mix Assistant",
+        "HTTP-Referer":   "https://github.com/priyxansh/reasig",
+        "X-Title":        "ReaSig — REAPER AI Mix Assistant",
     }
     body = {
         "model":      model,

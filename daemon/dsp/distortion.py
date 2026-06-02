@@ -1,5 +1,5 @@
 """
-ReaBot DSP - Harmonic Distortion (THD)
+ReaSig DSP - Harmonic Distortion (THD)
 
 Estimates Total Harmonic Distortion by finding the dominant fundamental
 frequency and measuring relative energy at its 2nd through 5th harmonics.

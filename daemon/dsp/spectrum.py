@@ -1,5 +1,5 @@
 """
-ReaBot DSP - Spectral Analysis
+ReaSig DSP - Spectral Analysis
 
 Analyzes the frequency content of the audio signal.
 """

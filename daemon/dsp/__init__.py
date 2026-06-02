@@ -1,1 +1,1 @@
-"""ReaBot DSP Package."""
+"""ReaSig DSP Package."""

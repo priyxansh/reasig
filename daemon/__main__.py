@@ -1,9 +1,9 @@
 """
-ReaBot Daemon - Entry Point
+ReaSig Daemon - Entry Point
 
 Usage: python -m daemon
 
-Starts the ReaBot daemon TCP server. This process runs independently
+Starts the ReaSig daemon TCP server. This process runs independently
 from REAPER and handles all heavy lifting: DSP analysis, LLM API calls,
 and streaming responses back to the ReaScript client.
 """
@@ -14,7 +14,7 @@ import signal
 import sys
 
 from .config import load_config
-from .server import ReaBotServer
+from .server import ReaSigServer
 
 
 def setup_logging() -> None:
@@ -30,7 +30,7 @@ def print_banner(host: str, port: int, model: str) -> None:
     """Print the startup banner."""
     print()
     print("╔══════════════════════════════════════════════════╗")
-    print("║           ReaBot Daemon v0.1.0                  ║")
+    print("║           ReaSig Daemon v0.1.0                  ║")
     print("║     AI Mix & Production Assistant               ║")
     print("╠══════════════════════════════════════════════════╣")
     print(f"║  Listening on: {host}:{port}                   ║")
@@ -43,7 +43,7 @@ def print_banner(host: str, port: int, model: str) -> None:
 async def main() -> None:
     """Main async entry point."""
     setup_logging()
-    logger = logging.getLogger("reabot")
+    logger = logging.getLogger("reasig")
 
     # Load configuration
     config = load_config()
@@ -54,7 +54,7 @@ async def main() -> None:
         sys.exit(1)
 
     # Create server
-    server = ReaBotServer(config)
+    server = ReaSigServer(config)
     
     # Register DSP handlers
     from .dsp.analyzer import analyze_audio_file

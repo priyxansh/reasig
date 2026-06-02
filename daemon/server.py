@@ -1,5 +1,5 @@
 """
-ReaBot Daemon - TCP Socket Server
+ReaSig Daemon - TCP Socket Server
 
 Async TCP server that handles connections from REAPER ReaScript clients.
 Uses asyncio for non-blocking I/O and concurrent client handling.
@@ -19,7 +19,7 @@ from .protocol import (
 )
 from .config import Config
 
-logger = logging.getLogger("reabot.server")
+logger = logging.getLogger("reasig.server")
 
 
 class ClientConnection:
@@ -29,7 +29,7 @@ class ClientConnection:
         self,
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
-        server: "ReaBotServer",
+        server: "ReaSigServer",
     ):
         self.reader = reader
         self.writer = writer
@@ -380,8 +380,8 @@ class ClientConnection:
             await self.send(error_response(msg.id, str(e), "chat_error"))
 
 
-class ReaBotServer:
-    """Async TCP server for the ReaBot daemon."""
+class ReaSigServer:
+    """Async TCP server for the ReaSig daemon."""
 
     def __init__(self, config: Config):
         self.config = config
@@ -401,7 +401,7 @@ class ReaBotServer:
             self.config.port,
         )
         addrs = ", ".join(str(s.getsockname()) for s in self.server.sockets)
-        logger.info("ReaBot daemon listening on %s", addrs)
+        logger.info("ReaSig daemon listening on %s", addrs)
 
     async def _on_connect(
         self,
@@ -430,7 +430,7 @@ class ReaBotServer:
 
     async def shutdown(self) -> None:
         """Gracefully shut down the server."""
-        logger.info("Shutting down ReaBot daemon...")
+        logger.info("Shutting down ReaSig daemon...")
         if self.server:
             self.server.close()
             await self.server.wait_closed()
@@ -438,4 +438,4 @@ class ReaBotServer:
         for client in self.clients:
             client._closed = True
             client.writer.close()
-        logger.info("ReaBot daemon stopped.")
+        logger.info("ReaSig daemon stopped.")

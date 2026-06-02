@@ -1,5 +1,5 @@
 """
-ReaBot DSP - Stereo Analysis
+ReaSig DSP - Stereo Analysis
 
 Analyzes stereo width, L/R balance, Mid/Side spectral content,
 and mono compatibility. Only runs when the user explicitly enables

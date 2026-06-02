@@ -1,5 +1,5 @@
 """
-ReaBot Daemon - IPC Protocol
+ReaSig Daemon - IPC Protocol
 
 JSON-lines protocol over TCP for communication between REAPER ReaScript and the daemon.
 Each message is a single JSON object terminated by a newline character.

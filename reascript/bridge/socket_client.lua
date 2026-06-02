@@ -1,6 +1,6 @@
 --[[
-  ReaBot — bridge/socket_client.lua
-  Non-blocking TCP client for communication with the ReaBot daemon.
+  ReaSig — bridge/socket_client.lua
+  Non-blocking TCP client for communication with the ReaSig daemon.
 
   Design:
   - State machine: DISCONNECTED → CONNECTING → CONNECTED → DISCONNECTED
@@ -55,7 +55,7 @@ local function _dispatch_buffer()
       if ok and msg then
         if _on_msg_cb then _on_msg_cb(msg) end
       else
-        reaper.ShowConsoleMsg("[ReaBot] JSON parse error on line: " .. line:sub(1, 80) .. "\n")
+        reaper.ShowConsoleMsg("[ReaSig] JSON parse error on line: " .. line:sub(1, 80) .. "\n")
       end
     end
   end
@@ -110,7 +110,7 @@ function M.send(msg_table)
   -- Enforce queue cap — drop oldest if full
   if #_send_q >= MAX_Q then
     table.remove(_send_q, 1)
-    reaper.ShowConsoleMsg("[ReaBot] Send queue full — dropping oldest message\n")
+    reaper.ShowConsoleMsg("[ReaSig] Send queue full — dropping oldest message\n")
   end
   table.insert(_send_q, line)
 end
@@ -138,7 +138,7 @@ function M.tick()
       break -- socket buffer full — retry next frame
     else
       -- Real error: connection dropped
-      reaper.ShowConsoleMsg("[ReaBot] Send error: " .. tostring(err) .. "\n")
+      reaper.ShowConsoleMsg("[ReaSig] Send error: " .. tostring(err) .. "\n")
       _close()
       return
     end
@@ -154,10 +154,10 @@ function M.tick()
   end
 
   if err == "closed" then
-    reaper.ShowConsoleMsg("[ReaBot] Connection lost: " .. tostring(err) .. "\n")
+    reaper.ShowConsoleMsg("[ReaSig] Connection lost: " .. tostring(err) .. "\n")
     _close()
   elseif err ~= "timeout" and err ~= nil then
-    reaper.ShowConsoleMsg("[ReaBot] Connection error: " .. tostring(err) .. "\n")
+    reaper.ShowConsoleMsg("[ReaSig] Connection error: " .. tostring(err) .. "\n")
     _close()
   end
 end

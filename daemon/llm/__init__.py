@@ -1,5 +1,5 @@
 """
-ReaBot LLM - Handler Factory
+ReaSig LLM - Handler Factory
 
 make_llm_handler() returns an async closure bound to the daemon config.
 The returned handler is registered as server.llm_handler in __main__.py
@@ -15,7 +15,7 @@ from typing import Callable
 from .client  import stream_response
 from .context import build_context
 
-logger = logging.getLogger("reabot.llm")
+logger = logging.getLogger("reasig.llm")
 
 
 def make_llm_handler(config):

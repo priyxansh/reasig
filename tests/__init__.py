@@ -1,1 +1,1 @@
-# ReaBot ReaScript tests
+# ReaSig ReaScript tests

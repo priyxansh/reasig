@@ -1,5 +1,5 @@
 """
-ReaBot DSP - Keyword Analysis Router
+ReaSig DSP - Keyword Analysis Router
 
 Scans the user's prompt and returns an AnalysisFlags object indicating
 which DSP modules should run for this request.

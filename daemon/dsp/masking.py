@@ -1,5 +1,5 @@
 """
-ReaBot DSP - Masking Analysis
+ReaSig DSP - Masking Analysis
 
 Analyzes frequency overlap between multiple tracks to detect masking.
 """

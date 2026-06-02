@@ -1,8 +1,8 @@
-# ReaBot 
+# ReaSig 
 
 **AI Mix & Production Assistant for REAPER (Linux)**
 
-ReaBot is a native AI-powered mixing assistant that runs inside [REAPER](https://www.reaper.fm/) as a floating chat window. It analyzes your audio tracks using professional DSP algorithms, feeds the results to LLM models via [OpenRouter](https://openrouter.ai/), and returns specific, actionable mixing advice — referencing your actual plugin chains and exact parameter values.
+ReaSig is a native AI-powered mixing assistant that runs inside [REAPER](https://www.reaper.fm/) as a floating chat window. It analyzes your audio tracks using professional DSP algorithms, feeds the results to LLM models via [OpenRouter](https://openrouter.ai/), and returns specific, actionable mixing advice — referencing your actual plugin chains and exact parameter values.
 
 ## Features
 
@@ -16,7 +16,7 @@ ReaBot is a native AI-powered mixing assistant that runs inside [REAPER](https:/
 ## Architecture
 
 ```
-REAPER (ReaImGui + ReaScript)  ←→  TCP Socket  ←→  ReaBot Daemon (librosa + OpenRouter)
+REAPER (ReaImGui + ReaScript)  ←→  TCP Socket  ←→  ReaSig Daemon (librosa + OpenRouter)
 ```
 
 - **UI Layer**: ReaImGui (Dear ImGui bindings for REAPER)
@@ -27,8 +27,8 @@ REAPER (ReaImGui + ReaScript)  ←→  TCP Socket  ←→  ReaBot Daemon (libros
 
 ```bash
 # 1. Clone and setup
-git clone https://github.com/priyxansh/reabot.git
-cd reabot
+git clone https://github.com/priyxansh/reasig.git
+cd reasig
 chmod +x setup.sh && ./setup.sh
 
 # 2. Add your OpenRouter API key
@@ -45,7 +45,7 @@ python -m daemon
 
 # 4. In REAPER:
 #    - Install ReaImGui via ReaPack (Extensions → ReaPack → Browse → search "ReaImGui")
-#    - Actions → Load ReaScript → select reascript/reabot_main.py
+#    - Actions → Load ReaScript → select reascript/reasig_main.py
 #    - Run the action to open the chat window
 ```
 
@@ -59,7 +59,7 @@ python -m daemon
 ## Project Structure
 
 ```
-reabot/
+reasig/
 ├── daemon/              # Standalone Python daemon process
 │   ├── dsp/             # Audio analysis modules (librosa-based)
 │   ├── llm/             # OpenRouter API client & prompt engineering

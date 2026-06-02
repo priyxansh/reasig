@@ -1,5 +1,5 @@
 --[[
-  ReaBot — render/stem_render.lua
+  ReaSig — render/stem_render.lua
   Renders the first selected track (post-FX, within the time selection) to a
   temporary WAV file, then polls each defer frame until the file is ready.
 
@@ -38,7 +38,7 @@ local MIN_FILE_SIZE = 1024   -- bytes — file must be at least 1 KB to be valid
 local function make_temp_path()
   local proj = reaper.GetProjectPath("")
   local base = (proj ~= "" and proj or reaper.GetResourcePath())
-  local dir  = base .. "/reabot_temp"
+  local dir  = base .. "/reasig_temp"
   -- REAPER API: create directory including all parents
   reaper.RecursiveCreateDirectory(dir, 0)
   -- Pseudo-UUID: combine timestamp with a random suffix for uniqueness
@@ -161,7 +161,7 @@ function M.tick()
   -- Timeout guard
   if reaper.time_precise() > _timeout_at then
     finish_render()
-    reaper.ShowConsoleMsg("[ReaBot] Render timed out after " .. MAX_WAIT_SEC .. "s\n")
+    reaper.ShowConsoleMsg("[ReaSig] Render timed out after " .. MAX_WAIT_SEC .. "s\n")
     if _on_error then _on_error("Render timed out after " .. MAX_WAIT_SEC .. " seconds.") end
     return
   end
@@ -185,7 +185,7 @@ function M.tick()
   if found_path then
     _path = found_path
     finish_render()
-    reaper.ShowConsoleMsg("[ReaBot] Render complete: " .. _path .. " (" .. found_sz .. " bytes)\n")
+    reaper.ShowConsoleMsg("[ReaSig] Render complete: " .. _path .. " (" .. found_sz .. " bytes)\n")
     if _on_done then _on_done(_path) end
   end
 end
@@ -196,20 +196,20 @@ function M.cleanup(path)
   if path and path ~= "" then
     local ok, err = os.remove(path)
     if not ok then
-      reaper.ShowConsoleMsg("[ReaBot] Could not delete temp file: " .. tostring(err) .. "\n")
+      reaper.ShowConsoleMsg("[ReaSig] Could not delete temp file: " .. tostring(err) .. "\n")
     end
   end
 end
 
----Clean up stale reabot_temp files left over from previous sessions.
+---Clean up stale reasig_temp files left over from previous sessions.
 ---Called once at script startup. Safe to delete everything because the current
----session's in-flight file is always tracked in _pending_wav (reabot_main.lua)
+---session's in-flight file is always tracked in _pending_wav (reasig_main.lua)
 ---and has not been written yet at startup time.
 ---@param max_age_sec number  unused, kept for API compatibility
 function M.cleanup_stale(max_age_sec)
   local proj = reaper.GetProjectPath("")
   local base = (proj ~= "" and proj or reaper.GetResourcePath())
-  local dir  = base .. "/reabot_temp"
+  local dir  = base .. "/reasig_temp"
 
   -- EnumerateFiles re-indexes after each deletion, so we always ask for index 0
   -- and loop until nil is returned (directory empty or no more files).
@@ -230,7 +230,7 @@ function M.cleanup_stale(max_age_sec)
   end
 
   if deleted > 0 then
-    reaper.ShowConsoleMsg("[ReaBot] Cleaned up " .. deleted .. " stale temp file(s) from previous session.\n")
+    reaper.ShowConsoleMsg("[ReaSig] Cleaned up " .. deleted .. " stale temp file(s) from previous session.\n")
   end
 end
 

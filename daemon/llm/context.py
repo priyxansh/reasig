@@ -1,5 +1,5 @@
 """
-ReaBot LLM - Context Packager
+ReaSig LLM - Context Packager
 
 Converts DSP analysis results + track metadata + conversation history
 into an OpenRouter-compatible messages list ready to be sent to the LLM.

@@ -1,5 +1,5 @@
 """
-ReaBot DSP - Muddiness and Tonal Imbalance Detection
+ReaSig DSP - Muddiness and Tonal Imbalance Detection
 
 Uses spectral data to flag common mixing issues.
 """

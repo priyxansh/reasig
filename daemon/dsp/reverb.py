@@ -1,5 +1,5 @@
 """
-ReaBot DSP - Reverb Tail Estimation (RT60)
+ReaSig DSP - Reverb Tail Estimation (RT60)
 
 Estimates RT60 (time for energy to decay 60 dB) using the Schroeder
 backward integration method. Most reliable on percussive sounds with
