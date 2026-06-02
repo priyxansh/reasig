@@ -19,20 +19,22 @@ local json            = require("lib/dkjson")
 
 -- ── State ──────────────────────────────────────────────────────────────────
 local _ctx            = nil
-local _messages       = {}  -- { role = "user"|"bot"|"err"|"bot_analysis", text|data = ... }
+local _messages       = {} -- { role = "user"|"bot"|"err"|"bot_analysis", text|data = ... }
 local _input_text     = ""
 local _status_text    = "Ready"
 local _stereo_enabled = false
 local _scroll_to_bot  = false
 local _is_connected   = false
-local _streaming_idx  = nil              -- index into _messages for active stream
-local _has_analysis   = false            -- true after first successful Analyze completes
-local _model_name     = "unknown model"  -- shown in UI; set by reasig_main.lua via M.set_model()
+local _has_analysis   = false           -- true after first successful Analyze completes
+local _model_name     = "unknown model" -- shown in UI; set by reasig_main.lua via M.set_model()
+
+local FONT_SIZE       = 16              -- configurable font size
+local _font           = nil
 
 -- Public callbacks — set by reasig_main.lua
 M.on_analyze_click    = nil
 M.on_chat_click       = nil
-M.on_clear_click      = nil   -- fired when the user clicks Clear (after in-memory wipe)
+M.on_clear_click      = nil -- fired when the user clicks Clear (after in-memory wipe)
 
 -- ── ImGui colour constants ─────────────────────────────────────────────────
 local COL_GREEN       = 0x44FF88FF
@@ -47,6 +49,9 @@ local COL_DIM         = 0x888888FF -- grey for labels
 ---Create the ImGui context. Call ONCE before the first draw().
 function M.init()
   _ctx = reaper.ImGui_CreateContext("ReaSig")
+
+  _font = reaper.ImGui_CreateFont('sans-serif', FONT_SIZE)
+  reaper.ImGui_Attach(_ctx, _font)
 end
 
 ---Update the status bar text.
@@ -151,10 +156,14 @@ function M.draw()
 
   -- !! SAFETY: ImGui_End must be called unconditionally if Begin was called !!
   if visible then
+    reaper.ImGui_PushFont(_ctx, _font, FONT_SIZE)
+
     _draw_header()
     _draw_chat_history()
     _draw_status_bar()
     _draw_input_row()
+
+    reaper.ImGui_PopFont(_ctx)
   end
   reaper.ImGui_End(_ctx) -- always — even when visible=false (minimised, etc.)
 
@@ -182,9 +191,9 @@ function _draw_header()
   local avail = reaper.ImGui_GetContentRegionAvail(_ctx)
   reaper.ImGui_SameLine(_ctx, avail - 40)
   if reaper.ImGui_SmallButton(_ctx, "Clear") then
-    M.clear_chat()               -- immediate: wipe messages, reset status
+    M.clear_chat()       -- immediate: wipe messages, reset status
     if M.on_clear_click then
-      M.on_clear_click()         -- tell daemon to wipe DB too
+      M.on_clear_click() -- tell daemon to wipe DB too
     end
   end
 
