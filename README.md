@@ -4,7 +4,7 @@
 
 ReaSig is a REAPER utility that analyses your audio tracks using professional DSP algorithms and translates the results into specific, actionable mixing advice — powered by LLMs via [OpenRouter](https://openrouter.ai/). It runs as a floating chat window inside REAPER, referencing your actual plugin chains, exact parameter values, and measured signal characteristics.
 
-https://github.com/user-attachments/assets/91dff3d7-5d9c-43a3-a55e-1d47b94c9f02
+<video src="https://github.com/user-attachments/assets/91dff3d7-5d9c-43a3-a55e-1d47b94c9f02" controls="controls" muted="muted" style="max-width: 100%;"></video>
 
 ## Features
 
